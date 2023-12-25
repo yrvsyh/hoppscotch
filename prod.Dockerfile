@@ -12,12 +12,19 @@ COPY . .
 RUN pnpm install -f --offline
 
 
-FROM base_builder as backend
+FROM base_builder as backend_builder
 RUN apk add caddy
 WORKDIR /usr/src/app/packages/hoppscotch-backend
 RUN pnpm exec prisma generate
 RUN pnpm run build
+
+FROM node:18-alpine3.16 as backend
 COPY --from=base_builder /usr/src/app/packages/hoppscotch-backend/backend.Caddyfile /etc/caddy/backend.Caddyfile
+COPY --from=backend_builder /usr/src/app /usr/src/app
+RUN apk add caddy
+ENV HOPP_ALLOW_RUNTIME_ENV=true
+RUN npm install -g pnpm
+WORKDIR /usr/src/app/packages/hoppscotch-backend
 # Remove the env file to avoid backend copying it in and using it
 RUN rm "../../.env"
 ENV PRODUCTION="true"
