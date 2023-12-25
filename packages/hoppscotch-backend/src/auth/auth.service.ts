@@ -197,6 +197,48 @@ export class AuthService {
   }
 
   /**
+   * @param email User's email
+   * @returns Either containing string
+   */
+  async getSignInMagicLink(email: string, origin: string) {
+    if (!validateEmail(email))
+      return E.left({
+        message: INVALID_EMAIL,
+        statusCode: HttpStatus.BAD_REQUEST,
+      });
+
+    let user: AuthUser;
+    const queriedUser = await this.usersService.findUserByEmail(email);
+
+    if (O.isNone(queriedUser)) {
+      user = await this.usersService.createUserViaMagicLink(email);
+    } else {
+      user = queriedUser.value;
+    }
+
+    const generatedTokens = await this.generateMagicLinkTokens(user);
+
+    // check to see if origin is valid
+    let url: string;
+    switch (origin) {
+      case Origin.ADMIN:
+        url = this.configService.get('VITE_ADMIN_URL');
+        break;
+      case Origin.APP:
+        url = this.configService.get('VITE_BASE_URL');
+        break;
+      default:
+        // if origin is invalid by default set URL to Hoppscotch-App
+        url = this.configService.get('VITE_BASE_URL');
+    }
+
+    let magicLink: string = `${url}/enter?token=${generatedTokens.token}&deviceId=${generatedTokens.deviceIdentifier}`;
+
+    return E.right(magicLink);
+  }
+
+
+  /**
    * Create User (if not already present) and send email to initiate Magic-Link auth
    *
    * @param email User's email

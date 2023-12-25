@@ -7,6 +7,7 @@ import {
   Request,
   Res,
   UseGuards,
+  HttpStatus,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignInMagicDto } from './dto/signin-magic.dto';
@@ -44,6 +45,31 @@ export class AuthController {
   async getAuthProviders() {
     const providers = await this.authService.getAuthProviders();
     return { providers };
+  }
+
+  /**
+   ** Route to initiate magic-link auth for a users email
+   */
+  @Get('signin/debug')
+  async signInDebug(
+    @Query('email') email: string,
+    @Query('origin') origin: string,
+  ) {
+    if (
+      !authProviderCheck(
+        AuthProvider.EMAIL,
+        this.configService.get('INFRA.VITE_ALLOWED_AUTH_PROVIDERS'),
+      )
+    ) {
+      throwHTTPErr({ message: AUTH_PROVIDER_NOT_SPECIFIED, statusCode: 404 });
+    }
+
+    const magicLink = await this.authService.getSignInMagicLink(
+      email,
+      origin,
+    );
+    if (E.isLeft(magicLink)) throwHTTPErr(magicLink.left);
+    return { magicLink: magicLink.right }
   }
 
   /**

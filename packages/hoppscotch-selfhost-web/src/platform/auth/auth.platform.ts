@@ -327,13 +327,19 @@ export const def: AuthPlatformDef = {
 
   async processMagicLink() {
     if (this.isSignInWithEmailLink(window.location.href)) {
-      const deviceIdentifier =
+      let deviceIdentifier =
         persistenceService.getLocalConfig("deviceIdentifier")
 
       if (!deviceIdentifier) {
-        throw new Error(
-          "Device Identifier not found, you can only signin from the browser you generated the magic link"
-        )
+        const urlObject = new URL(window.location.href)
+        const searchParams = new URLSearchParams(urlObject.search)
+        deviceIdentifier = searchParams.get("deviceId")
+        if (!deviceIdentifier) {
+          throw new Error(
+            "Device Identifier not found, you can only signin from the browser you generated the magic link"
+          )
+        }
+        persistenceService.setLocalConfig("deviceIdentifier", deviceIdentifier)
       }
 
       await this.signInWithEmailLink(deviceIdentifier, window.location.href)
